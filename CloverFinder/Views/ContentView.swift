@@ -14,7 +14,10 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-                CameraPreview(session: cameraService.session)
+                CameraPreview(
+                    session: cameraService.session,
+                    boundingBoxes: detectionViewModel.lastResult?.boundingBoxes ?? []
+                )
                     .ignoresSafeArea()
 
                 if !cameraService.isAuthorized {
@@ -23,11 +26,6 @@ struct ContentView: View {
                         .background(.black.opacity(0.6))
                         .foregroundColor(.white)
                 } else {
-                    
-                    if let boxes = detectionViewModel.lastResult?.boundingBoxes {
-                        BoundingBoxesOverlay(boxes: boxes)
-                    }
-                    
                     Text(detectionViewModel.lastResultText)
                                     .padding(8)
                                     .background(.black.opacity(0.6))
