@@ -19,17 +19,11 @@ final class FrameAnalyzer {
             return
         }
 
-        let width = CVPixelBufferGetWidth(pixelBuffer)
-        let height = CVPixelBufferGetHeight(pixelBuffer)
-
-        let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        //print("FrameAnalyzer: pixelBuffer \(width)x\(height) at \(timestamp)")
-        
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
         
         let request = VNDetectRectanglesRequest()
-        request.maximumObservations = 10
-        request.minimumConfidence = 0.6
+        request.maximumObservations = 8
+        request.minimumConfidence = 0.5
         
         do {
             try handler.perform([request])

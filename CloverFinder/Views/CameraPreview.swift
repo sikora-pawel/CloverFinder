@@ -18,9 +18,8 @@ struct CameraPreview: UIViewRepresentable {
         view.previewLayer.session = session
         view.previewLayer.videoGravity = .resizeAspectFill
         
-        // Ustawiamy orientację połączenia, aby odpowiadała orientacji Vision (.right)
-        if let connection = view.previewLayer.connection, connection.isVideoOrientationSupported {
-            connection.videoOrientation = .landscapeRight
+        if let connection = view.previewLayer.connection, connection.isVideoRotationAngleSupported(90) {
+            connection.videoRotationAngle = 90
         }
         
         return view
@@ -55,8 +54,10 @@ class CameraPreviewView: UIView {
         super.layoutSubviews()
         previewLayer.frame = bounds
         overlayLayer.frame = bounds
-        // Odśwież prostokąty po zmianie rozmiaru (konwersja współrzędnych zależy od rozmiaru warstwy)
-        updateBoundingBoxes(boundingBoxes)
+        
+        if overlayLayer.frame != bounds {
+            updateBoundingBoxes(boundingBoxes)
+        }
     }
     
     private var boundingBoxes: [CGRect] = []
@@ -69,7 +70,6 @@ class CameraPreviewView: UIView {
             return
         }
         
-        // Tworzymy ścieżkę zawierającą wszystkie prostokąty
         let path = CGMutablePath()
         
         for box in boxes {
