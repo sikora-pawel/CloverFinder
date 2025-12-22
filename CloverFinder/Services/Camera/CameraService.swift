@@ -80,6 +80,10 @@ final class CameraService: NSObject, ObservableObject {
                 session.stopRunning()
             }
     }
+    
+    func setAnalyzerOutput(_ output: FrameAnalyzerOutput) {
+        analyzer.output = output
+    }
 
     private func requestAuthorizationIfNeeded() async -> Bool {
         switch AVCaptureDevice.authorizationStatus(for: .video) {
