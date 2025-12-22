@@ -73,12 +73,7 @@ class CameraPreviewView: UIView {
         let path = CGMutablePath()
         
         for box in boxes {
-            // Vision zwraca współrzędne znormalizowane (0-1) w układzie, gdzie (0,0) jest w lewym dolnym rogu
-            // Vision używa orientacji .right, więc współrzędne są w układzie obróconym o 90° w prawo
-            // Musimy przekonwertować je na współrzędne warstwy preview
             
-            // Vision boundingBox: (0,0) w lewym dolnym rogu, metadata output: (0,0) w lewym górnym rogu
-            // Najpierw odwracamy Y, bo Vision ma (0,0) w lewym dolnym rogu
             let visionRectTopLeft = CGRect(
                 x: box.origin.x,
                 y: 1.0 - box.origin.y - box.height,
@@ -86,14 +81,6 @@ class CameraPreviewView: UIView {
                 height: box.height
             )
             
-            // Teraz musimy uwzględnić orientację .right
-            // Gdy Vision używa .right, współrzędne są obrócone o 90° w prawo
-            // W układzie .right: X Vision -> Y obrazu, Y Vision -> X obrazu (odwrócone)
-            // Przekształcenie dla orientacji .right (X bez odwracania, Y odwrócone):
-            // x_image = y_vision
-            // y_image = 1 - x_vision - width_vision
-            // width_image = height_vision
-            // height_image = width_vision
             let imageRect = CGRect(
                 x: visionRectTopLeft.origin.y,
                 y: 1.0 - visionRectTopLeft.origin.x - visionRectTopLeft.width,
@@ -101,8 +88,6 @@ class CameraPreviewView: UIView {
                 height: visionRectTopLeft.width
             )
             
-            // Konwertujemy znormalizowane współrzędne na współrzędne warstwy preview
-            // layerRectConverted automatycznie uwzględnia orientację połączenia (.landscapeRight) i aspect fill
             let layerRect = previewLayer.layerRectConverted(fromMetadataOutputRect: imageRect)
             
             path.addRect(layerRect)

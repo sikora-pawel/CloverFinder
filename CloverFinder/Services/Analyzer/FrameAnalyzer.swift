@@ -23,7 +23,7 @@ final class FrameAnalyzer {
         let height = CVPixelBufferGetHeight(pixelBuffer)
 
         let timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer).seconds
-        print("FrameAnalyzer: pixelBuffer \(width)x\(height) at \(timestamp)")
+        //print("FrameAnalyzer: pixelBuffer \(width)x\(height) at \(timestamp)")
         
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
         
