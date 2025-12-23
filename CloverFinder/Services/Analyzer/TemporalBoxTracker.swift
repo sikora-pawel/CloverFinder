@@ -8,6 +8,13 @@
 import Foundation
 import CoreGraphics
 
+/// Events emitted by the tracker to signal track lifecycle changes
+enum DetectionEvent {
+    case appeared(trackId: Int)
+    case confirmed(trackId: Int, rect: CGRect)
+    case lost(trackId: Int)
+}
+
 /// Tracks multiple bounding boxes over time with temporal smoothing and noise filtering.
 /// All operations are performed in normalized (0-1) Vision coordinate space.
 final class TemporalBoxTracker {
@@ -39,8 +46,9 @@ final class TemporalBoxTracker {
     
     /// Update tracker with new detections from current frame
     /// - Parameter detections: Array of bounding boxes in normalized (0-1) coordinates
-    /// - Returns: Array of smoothed, confirmed bounding boxes ready for rendering
-    func update(with detections: [CGRect]) -> [CGRect] {
+    /// - Returns: Array of detection events signaling track lifecycle changes
+    func update(with detections: [CGRect]) -> [DetectionEvent] {
+        var events: [DetectionEvent] = []
         // Match new detections to existing tracks
         var matchedTrackIndices = Set<Int>()
         var matchedDetectionIndices = Set<Int>()
@@ -113,6 +121,14 @@ final class TemporalBoxTracker {
                         alpha: smoothingAlpha
                     )
                 }
+                
+                // Check if track should transition from tentative to confirmed
+                let wasTentative = trackedBoxes[match.trackIdx].state == .tentative
+                if wasTentative && trackedBoxes[match.trackIdx].consecutiveFrames >= minFramesToConfirm {
+                    // State transition: tentative -> confirmed
+                    trackedBoxes[match.trackIdx].state = .confirmed
+                    events.append(.confirmed(trackId: trackedBoxes[match.trackIdx].trackId, rect: trackedBoxes[match.trackIdx].smoothedRect))
+                }
             }
         }
         
@@ -120,6 +136,7 @@ final class TemporalBoxTracker {
         for (detectionIdx, detection) in detections.enumerated() {
             if !matchedDetectionIndices.contains(detectionIdx) {
                 let newTrack = TrackedBox(trackId: nextTrackId, initialRect: detection)
+                events.append(.appeared(trackId: newTrack.trackId))
                 nextTrackId += 1
                 trackedBoxes.append(newTrack)
             }
@@ -129,17 +146,33 @@ final class TemporalBoxTracker {
         for i in trackedBoxes.indices {
             if !matchedTrackIndices.contains(i) {
                 trackedBoxes[i].markMissed()
+                // Transition confirmed tracks to dying when missed
+                if trackedBoxes[i].state == .confirmed {
+                    trackedBoxes[i].state = .dying
+                }
             }
         }
         
-        // Remove tracks that have been missing too long
+        // Remove tracks that have been missing too long and emit lost events
+        let tracksToRemove = trackedBoxes.filter { $0.missedFrames > maxMissedFrames }
+        for track in tracksToRemove {
+            events.append(.lost(trackId: track.trackId))
+        }
         trackedBoxes.removeAll { $0.missedFrames > maxMissedFrames }
         
-        // Return only confirmed tracks (filter noise)
-        // This ensures single-frame detections are never rendered
-        return trackedBoxes
-            .filter { $0.consecutiveFrames >= minFramesToConfirm }
-            .map { $0.smoothedRect }
+        return events
+    }
+    
+    /// Get current confirmed track rects for rendering
+    /// - Returns: Dictionary mapping trackId to current smoothed rect for all confirmed tracks
+    func getConfirmedTrackRects() -> [Int: CGRect] {
+        var result: [Int: CGRect] = [:]
+        for track in trackedBoxes {
+            if track.state == .confirmed {
+                result[track.trackId] = track.smoothedRect
+            }
+        }
+        return result
     }
     
     /// Reset all tracking state (useful for camera restart or major scene changes)

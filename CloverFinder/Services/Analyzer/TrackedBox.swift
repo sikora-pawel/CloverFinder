@@ -8,6 +8,13 @@
 import Foundation
 import CoreGraphics
 
+/// Track state for lifecycle management
+enum TrackState {
+    case tentative
+    case confirmed
+    case dying
+}
+
 /// Represents a single tracked bounding box with temporal smoothing state.
 /// All coordinates are in normalized (0-1) Vision coordinate space.
 struct TrackedBox {
@@ -23,12 +30,16 @@ struct TrackedBox {
     /// Unique identifier for this track (assigned by tracker)
     let trackId: Int
     
+    /// Current state of this track
+    var state: TrackState
+    
     /// Initialize a new tracked box from a detection
     init(trackId: Int, initialRect: CGRect) {
         self.trackId = trackId
         self.smoothedRect = initialRect
         self.consecutiveFrames = 1
         self.missedFrames = 0
+        self.state = .tentative
     }
     
     /// Update the smoothed box using Exponential Moving Average

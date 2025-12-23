@@ -29,8 +29,12 @@ final class DetectionViewModel: ObservableObject {
 
 extension DetectionViewModel: FrameAnalyzerOutput {
     func analyzerDidProduceResult(_ result: AnalysisResult) {
-        // Apply temporal smoothing and noise filtering
-        let smoothedBoxes = boxTracker.update(with: result.boundingBoxes)
+        // Process tracker events (track lifecycle changes)
+        _ = boxTracker.update(with: result.boundingBoxes)
+        
+        // Get current confirmed track rects for rendering
+        let confirmedRects = boxTracker.getConfirmedTrackRects()
+        let smoothedBoxes = Array(confirmedRects.values)
         
         // Create updated result with smoothed boxes
         let smoothedResult = AnalysisResult(
