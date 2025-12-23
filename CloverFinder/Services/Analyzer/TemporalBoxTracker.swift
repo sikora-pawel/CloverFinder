@@ -8,15 +8,32 @@
 import Foundation
 import CoreGraphics
 
-/// Events emitted by the tracker to signal track lifecycle changes
+/// Events emitted by the tracker to signal track lifecycle changes.
+/// 
+/// **Hybrid API Model:**
+/// - Events signal discrete lifecycle transitions (appeared, confirmed, lost)
+/// - Each lifecycle event is emitted exactly once per track
+/// - Continuous geometry updates are NOT events - use getConfirmedTrackRects() instead
 enum DetectionEvent {
+    /// Emitted exactly once when a new track is created (tentative state)
     case appeared(trackId: Int)
+    /// Emitted exactly once when a track transitions from tentative to confirmed
     case confirmed(trackId: Int, rect: CGRect)
+    /// Emitted exactly once when a track is removed after being missing too long
     case lost(trackId: Int)
 }
 
 /// Tracks multiple bounding boxes over time with temporal smoothing and noise filtering.
 /// All operations are performed in normalized (0-1) Vision coordinate space.
+///
+/// **Hybrid API Design:**
+/// - **Events** (via update() return value): Discrete lifecycle transitions only
+///   - Use events to react to track creation, confirmation, and removal
+///   - Each event type is emitted exactly once per track
+/// - **Snapshot** (via getConfirmedTrackRects()): Current geometry for all confirmed tracks
+///   - Call this method each frame to get continuously updated rectangle positions
+///   - This is the single source of truth for current confirmed track geometry
+///   - Geometry updates do NOT generate events
 final class TemporalBoxTracker {
     
     // MARK: - Configuration
@@ -25,10 +42,10 @@ final class TemporalBoxTracker {
     var iouThreshold: Double = 0.3
     
     /// EMA smoothing factor (0-1). Higher = more responsive, lower = more stable
-    var smoothingAlpha: Double = 0.5
+    var smoothingAlpha: Double = 0.7
     
     /// Minimum consecutive frames a box must appear before being output (noise filtering)
-    var minFramesToConfirm: Int = 4
+    var minFramesToConfirm: Int = 5
     
     /// Maximum frames a box can be missing before being dropped
     var maxMissedFrames: Int = 5
@@ -44,7 +61,13 @@ final class TemporalBoxTracker {
     
     // MARK: - Public API
     
-    /// Update tracker with new detections from current frame
+    /// Update tracker with new detections from current frame.
+    ///
+    /// **Returns:** Array of lifecycle events (appeared, confirmed, lost) for this frame.
+    /// - Each event type is emitted exactly once per track
+    /// - Geometry updates for existing confirmed tracks do NOT generate events
+    /// - Use getConfirmedTrackRects() to get current geometry for rendering
+    ///
     /// - Parameter detections: Array of bounding boxes in normalized (0-1) coordinates
     /// - Returns: Array of detection events signaling track lifecycle changes
     func update(with detections: [CGRect]) -> [DetectionEvent] {
@@ -59,6 +82,8 @@ final class TemporalBoxTracker {
             
             for (trackIdx, track) in trackedBoxes.enumerated() {
                 guard !matchedTrackIndices.contains(trackIdx) else { continue }
+                // Exclude .dying tracks from matching to allow reappearing objects to form new tracks
+                guard track.state != .dying else { continue }
                 
                 let iou = calculateIoU(detection, track.smoothedRect)
                 if iou >= iouThreshold {
@@ -79,6 +104,8 @@ final class TemporalBoxTracker {
                 
                 for (trackIdx, track) in trackedBoxes.enumerated() {
                     guard !matchedTrackIndices.contains(trackIdx) else { continue }
+                    // Exclude .dying tracks from matching to allow reappearing objects to form new tracks
+                    guard track.state != .dying else { continue }
                     // Only match tracks that were present last frame (missedFrames == 1 after markMissed)
                     guard track.missedFrames == 1 else { continue }
                     
@@ -123,20 +150,24 @@ final class TemporalBoxTracker {
                 }
                 
                 // Check if track should transition from tentative to confirmed
+                // Emit .confirmed event exactly once when this transition occurs
                 let wasTentative = trackedBoxes[match.trackIdx].state == .tentative
                 if wasTentative && trackedBoxes[match.trackIdx].consecutiveFrames >= minFramesToConfirm {
-                    // State transition: tentative -> confirmed
+                    // State transition: tentative -> confirmed (emit event exactly once)
                     trackedBoxes[match.trackIdx].state = .confirmed
                     events.append(.confirmed(trackId: trackedBoxes[match.trackIdx].trackId, rect: trackedBoxes[match.trackIdx].smoothedRect))
                 }
+                // Note: Geometry updates for confirmed tracks do NOT emit events
+                // Use getConfirmedTrackRects() to get continuously updated positions
             }
         }
         
         // Create new tracks for unmatched detections
+        // Emit .appeared event exactly once when a new track is created
         for (detectionIdx, detection) in detections.enumerated() {
             if !matchedDetectionIndices.contains(detectionIdx) {
                 let newTrack = TrackedBox(trackId: nextTrackId, initialRect: detection)
-                events.append(.appeared(trackId: newTrack.trackId))
+                events.append(.appeared(trackId: newTrack.trackId)) // Emit exactly once per new track
                 nextTrackId += 1
                 trackedBoxes.append(newTrack)
             }
@@ -154,16 +185,23 @@ final class TemporalBoxTracker {
         }
         
         // Remove tracks that have been missing too long and emit lost events
+        // Emit .lost event exactly once when a track is removed
         let tracksToRemove = trackedBoxes.filter { $0.missedFrames > maxMissedFrames }
         for track in tracksToRemove {
-            events.append(.lost(trackId: track.trackId))
+            events.append(.lost(trackId: track.trackId)) // Emit exactly once per removed track
         }
         trackedBoxes.removeAll { $0.missedFrames > maxMissedFrames }
         
         return events
     }
     
-    /// Get current confirmed track rects for rendering
+    /// Get current confirmed track rects for rendering.
+    ///
+    /// **Snapshot API:** This is the single source of truth for current confirmed track geometry.
+    /// - Returns continuously updated positions for all confirmed tracks
+    /// - Call this method each frame to get the latest smoothed rectangle positions
+    /// - Geometry updates do NOT generate events (use update() events for lifecycle changes only)
+    ///
     /// - Returns: Dictionary mapping trackId to current smoothed rect for all confirmed tracks
     func getConfirmedTrackRects() -> [Int: CGRect] {
         var result: [Int: CGRect] = [:]

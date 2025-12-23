@@ -23,7 +23,7 @@ final class FrameAnalyzer {
         
         let request = VNDetectRectanglesRequest()
         request.maximumObservations = 20
-        request.minimumConfidence = 0.5
+        request.minimumConfidence = 0.6
         request.minimumSize = 0.05
         
         do {
