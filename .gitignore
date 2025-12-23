@@ -1,0 +1,28 @@
+# =========================
+# Xcode – dane użytkownika
+# =========================
+xcuserdata/
+*.xcuserstate
+
+# =========================
+# Xcode – artefakty builda
+# =========================
+DerivedData/
+.build/
+
+# =========================
+# macOS
+# =========================
+.DS_Store
+
+# =========================
+# Swift Package Manager
+# =========================
+.swiftpm/xcode/package.xcworkspace/
+.swiftpm/xcode/xcuserdata/
+
+# =========================
+# Logi i tymczasowe
+# =========================
+*.log
+*.tmp
