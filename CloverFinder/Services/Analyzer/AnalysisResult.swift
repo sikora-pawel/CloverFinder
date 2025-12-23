@@ -6,9 +6,12 @@
 //
 
 import Foundation
+import CoreGraphics
+import CoreVideo
+import ImageIO
 
 protocol FrameAnalyzerOutput: AnyObject {
-    func analyzerDidProduceResult(_ result: AnalysisResult)
+    func analyzerDidProduceResult(_ result: AnalysisResult, pixelBuffer: CVPixelBuffer, visionOrientation: CGImagePropertyOrientation)
 }
 
 struct AnalysisResult: Sendable {

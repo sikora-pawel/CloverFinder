@@ -8,6 +8,8 @@
 import Foundation
 import Combine
 import CoreGraphics
+import CoreVideo
+import ImageIO
 
 @MainActor
 final class DetectionViewModel: ObservableObject {
@@ -17,6 +19,9 @@ final class DetectionViewModel: ObservableObject {
     /// Temporal tracker for smoothing and filtering bounding boxes
     private let boxTracker = TemporalBoxTracker()
     
+    /// ROI extraction service for debug visualization
+    let roiService = ROIService()
+    
     init() {
         // Configure tracker with reasonable defaults for ~30 FPS
         boxTracker.iouThreshold = 0.3
@@ -24,11 +29,18 @@ final class DetectionViewModel: ObservableObject {
         boxTracker.minFramesToConfirm = 2  // Filter out single-frame noise
         boxTracker.maxMissedFrames = 5     // ~167ms at 30 FPS
         boxTracker.maxJumpDistance = 0.3  // Reset on large jumps
+        
+        // Forward ROI service changes to trigger view updates
+        roiService.objectWillChange.sink { [weak self] _ in
+            self?.objectWillChange.send()
+        }.store(in: &cancellables)
     }
+    
+    private var cancellables = Set<AnyCancellable>()
 }
 
 extension DetectionViewModel: FrameAnalyzerOutput {
-    func analyzerDidProduceResult(_ result: AnalysisResult) {
+    func analyzerDidProduceResult(_ result: AnalysisResult, pixelBuffer: CVPixelBuffer, visionOrientation: CGImagePropertyOrientation) {
         // Process tracker events (track lifecycle changes)
         _ = boxTracker.update(with: result.boundingBoxes)
         
@@ -45,5 +57,12 @@ extension DetectionViewModel: FrameAnalyzerOutput {
         
         lastResult = smoothedResult
         lastResultText = "Rectangles: \(smoothedResult.rectanglesDetected) (raw: \(result.rectanglesDetected))"
+        
+        // Process frame for ROI extraction with the exact orientation used by Vision
+        roiService.processFrame(
+            pixelBuffer: pixelBuffer,
+            confirmedTracks: confirmedRects,
+            visionOrientation: visionOrientation
+        )
     }
 }

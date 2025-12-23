@@ -31,12 +31,25 @@ struct ContentView: View {
                     Spacer()
                     
                     if cameraService.isAuthorized {
-                        Text(detectionViewModel.lastResultText)
-                            .padding(8)
-                            .background(.black.opacity(0.6))
-                            .foregroundColor(.white)
-                            .cornerRadius(8)
-                            .padding()
+                        VStack(spacing: 12) {
+                            /*Text(detectionViewModel.lastResultText)
+                                .padding(8)
+                                .background(.black.opacity(0.6))
+                                .foregroundColor(.white)
+                                .cornerRadius(8)*/
+                            
+                            // Debug ROI thumbnails
+                            if !detectionViewModel.roiService.roiThumbnails.isEmpty {
+                                ROIDebugView(
+                                    roiThumbnails: detectionViewModel.roiService.roiThumbnails,
+                                    selectedTrackId: Binding(
+                                        get: { detectionViewModel.roiService.selectedTrackIdForVerification },
+                                        set: { detectionViewModel.roiService.selectedTrackIdForVerification = $0 }
+                                    )
+                                )
+                            }
+                        }
+                        .padding()
                     }
                 }
             }

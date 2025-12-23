@@ -8,6 +8,7 @@
 import Foundation
 import CoreMedia
 import Vision
+import ImageIO
 
 final class FrameAnalyzer {
     
@@ -19,7 +20,9 @@ final class FrameAnalyzer {
             return
         }
 
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
+        // Capture the exact orientation used by Vision
+        let visionOrientation: CGImagePropertyOrientation = .right
+        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: visionOrientation, options: [:])
         
         let request = VNDetectRectanglesRequest()
         request.maximumObservations = 20
@@ -42,7 +45,7 @@ final class FrameAnalyzer {
                 timestamp: timestamp
             )
 
-            output?.analyzerDidProduceResult(result)
+            output?.analyzerDidProduceResult(result, pixelBuffer: pixelBuffer, visionOrientation: visionOrientation)
             
         } catch {
             print("FrameAnalyzer: Vision error:", error)
