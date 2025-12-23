@@ -20,21 +20,25 @@ struct ContentView: View {
                 )
                     .ignoresSafeArea()
 
-                if !cameraService.isAuthorized {
-                    Text("Brak dostępu do kamery")
-                        .padding()
-                        .background(.black.opacity(0.6))
-                        .foregroundColor(.white)
-                } else {
-                    Text(detectionViewModel.lastResultText)
-                                    .padding(8)
-                                    .background(.black.opacity(0.6))
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                                    .padding()
+                VStack {
+                    if !cameraService.isAuthorized {
+                        Text("Brak dostępu do kamery")
+                            .padding()
+                            .background(.black.opacity(0.6))
+                            .foregroundColor(.white)
+                    }
+                    
+                    Spacer()
+                    
+                    if cameraService.isAuthorized {
+                        Text(detectionViewModel.lastResultText)
+                            .padding(8)
+                            .background(.black.opacity(0.6))
+                            .foregroundColor(.white)
+                            .cornerRadius(8)
+                            .padding()
+                    }
                 }
-            
-                
             }
             .task {
                 await cameraService.configure()

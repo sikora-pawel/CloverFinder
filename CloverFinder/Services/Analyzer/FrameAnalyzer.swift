@@ -22,8 +22,9 @@ final class FrameAnalyzer {
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, orientation: .right, options: [:])
         
         let request = VNDetectRectanglesRequest()
-        request.maximumObservations = 8
-        request.minimumConfidence = 0.5
+        request.maximumObservations = 20
+        request.minimumConfidence = 0.6
+        request.minimumSize = 0.05
         
         do {
             try handler.perform([request])
