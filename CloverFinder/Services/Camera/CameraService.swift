@@ -21,7 +21,7 @@ final class CameraService: NSObject, ObservableObject {
         label: "camera.sample.buffer.queue",
         qos: .userInitiated
     )
-    private let framePipeline = FramePipeline(analyzeEveryNthFrame: 5)
+    private let framePipeline = FramePipeline(analyzeEveryNthFrame: 1) //1 is costy
     private let analyzer = FrameAnalyzer()
 
     func configure() async {
